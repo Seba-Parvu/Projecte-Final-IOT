@@ -16,10 +16,11 @@ int lightValue;
 void handleRoot() {
 
   String page =
-  "<html><body>"
-  "<h1>Escola Intel·ligent</h1>"
-  "<p>Temperatura: " + String(tempC) + "</p>"
-  "<p>Llum: " + String(lightValue) + "</p>"
+  "<html><body style='font-family:Arial;'>"
+  "<h1 style='font-size:32px;'>Escola Intel·ligent</h1>"
+  "<h2 style='font-size:20px; color:black;'>Dades ambientals</h2>"
+  "<p style='font-size:16px;'>Temperatura: " + String(tempC) + " ºC</p>"
+  "<p style='font-size:16px;'>Llum: " + String(lightValue) + "</p>"
   "</body></html>";
 
   server.send(200, "text/html", page);
@@ -38,10 +39,9 @@ void setup() {
 }
 
 void loop() {
-  tempC = (analogRead(LM35)*3.3/4095.0)*100;
+  tempC = (analogRead(LM35) * 3.3 / 4095.0) * 100;
   lightValue = analogRead(LIGHT);
 
-  // 💡 REGLE
   digitalWrite(LED, lightValue < 1500);
 
   server.handleClient();
