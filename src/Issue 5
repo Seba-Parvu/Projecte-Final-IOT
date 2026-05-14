@@ -1,0 +1,43 @@
+#include <WiFi.h>
+#include <WebServer.h>
+
+const char* ssid = "ProjectesSMX";
+const char* password = "SI123456";
+
+WebServer server(80);
+
+#define LM35 34
+#define LIGHT 35
+
+float tempC;
+int lightValue;
+
+void handleRoot() {
+  String page = "<html><body>";
+  page += "<h1>Escola Intel·ligent</h1>";
+  page += "<p>Temperatura: " + String(tempC) + " C</p>";
+  page += "<p>Llum: " + String(lightValue) + "</p>";
+  page += "</body></html>";
+
+  server.send(200, "text/html", page);
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+
+  server.on("/", handleRoot);
+  server.begin();
+}
+
+void loop() {
+  tempC = (analogRead(LM35) * 3.3 / 4095.0) * 100;
+  lightValue = analogRead(LIGHT);
+
+  server.handleClient();
+}
