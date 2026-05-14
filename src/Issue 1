@@ -1,0 +1,23 @@
+#include <WiFi.h>
+
+const char* ssid = "ProjectesSMX";
+const char* password = "SI123456";
+
+void setup() {
+  Serial.begin(115200);
+
+  Serial.println("Iniciant ESP32...");
+
+  WiFi.begin(ssid, password);
+  Serial.print("Connectant WiFi");
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\nWiFi CONNECTAT!");
+  Serial.println(WiFi.localIP());
+}
+
+void loop() {}
