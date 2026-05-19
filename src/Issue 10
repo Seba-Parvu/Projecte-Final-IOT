@@ -1,0 +1,95 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESP32Servo.h>
+
+#define LM35 34
+#define LIGHT 35
+#define LED 27
+#define STRIP 14
+#define SERVO_PIN 25
+#define BUTTON 17
+
+const char* ssid = "ProjectesSMX";
+const char* password = "SI123456";
+
+WebServer server(80);
+Servo servo;
+
+float tempC;
+int lightValue;
+
+bool autoMode = true;
+
+int angle = 90;
+int stepDir = 10;
+
+void handleRoot() {
+
+  String page =
+  "<html><body style='font-family:Arial;'>"
+  "<h1>Escola Intel·ligent</h1>"
+  "<h2>Dades ambientals</h2>"
+  "<p>Temperatura: " + String(tempC) + " ºC</p>"
+  "<p>Llum: " + String(lightValue) + "</p>"
+  "<h3>Mode: " + String(autoMode ? "AUTO 🤖" : "MANUAL ✋") + "</h3>"
+  "</body></html>";
+
+  server.send(200, "text/html", page);
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(LED, OUTPUT);
+  pinMode(STRIP, OUTPUT);
+  pinMode(BUTTON, INPUT_PULLUP);
+
+  servo.attach(SERVO_PIN);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+
+  Serial.println("WiFi CONNECTAT");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+
+  server.on("/", handleRoot);
+  server.begin();
+}
+
+void loop() {
+
+  server.handleClient();
+
+  // 🔘 CANVI AUTO / MANUAL
+  if (digitalRead(BUTTON) == LOW) {
+    autoMode = !autoMode;
+    delay(300);
+  }
+
+  tempC = (analogRead(LM35) * 3.3 / 4095.0) * 100;
+  lightValue = analogRead(LIGHT);
+
+  // 💡 LLUM (sempre activa)
+  digitalWrite(LED, lightValue < 1500);
+  digitalWrite(STRIP, lightValue < 1500);
+
+  // 🌡️ SERVO NOMÉS EN AUTO
+  if (autoMode) {
+
+    if (tempC > 13.5 && lightValue < 3000) {
+
+      angle += stepDir;
+
+      if (angle >= 180 || angle <= 0) {
+        stepDir = -stepDir;
+      }
+
+      servo.write(angle);
+      delay(30);
+
+    } else {
+      servo.write(90);
+    }
+  }
+}
