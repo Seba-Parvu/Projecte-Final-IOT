@@ -1,0 +1,89 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESP32Servo.h>
+
+// 📌 PINOS
+#define LM35 34
+#define LIGHT 35
+#define LED 27
+#define STRIP 14
+#define SERVO_PIN 25
+
+// 📡 WIFI
+const char* ssid = "ProjectesSMX";
+const char* password = "SI123456";
+
+// 🌐 SERVER
+WebServer server(80);
+Servo servo;
+
+// 📊 VARIABLES
+float tempC;
+int lightValue;
+
+// 🌀 SERVO
+int angle = 90;
+int stepDir = 10;
+
+// 🧠 PÀGINA WEB
+void handleRoot() {
+
+  String page =
+  "<html><body style='font-family:Arial;'>"
+  "<h1>Escola Intel·ligent</h1>"
+  "<h2>Dades ambientals</h2>"
+  "<p>Temperatura: " + String(tempC) + " ºC</p>"
+  "<p>Llum: " + String(lightValue) + " (0-4095)</p>"
+  "</body></html>";
+
+  server.send(200, "text/html", page);
+}
+
+// ⚙️ SETUP
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(LED, OUTPUT);
+  pinMode(STRIP, OUTPUT);
+
+  servo.attach(SERVO_PIN);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+
+  Serial.println("WiFi CONNECTAT");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+
+  server.on("/", handleRoot);
+  server.begin();
+}
+
+// 🔁 LOOP
+void loop() {
+
+  server.handleClient();
+
+  // 📊 SENSORS
+  tempC = (analogRead(LM35) * 3.3 / 4095.0) * 100;
+  lightValue = analogRead(LIGHT);
+
+  // 💡 LLUM CONTROL (FIXAT 1500)
+  digitalWrite(LED, lightValue < 1500);
+  digitalWrite(STRIP, lightValue < 1500);
+
+  // 🌡️ SERVO (ACTIU SI CALOR)
+  if (tempC > 13.5) {
+
+    angle += stepDir;
+
+    if (angle >= 180 || angle <= 0) {
+      stepDir = -stepDir;
+    }
+
+    servo.write(angle);
+    delay(30);
+  }
+}
