@@ -1,0 +1,69 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESP32Servo.h>
+
+#define LM35 34
+#define LIGHT 35
+#define LED 27
+
+const char* ssid = "ProjectesSMX";
+const char* password = "SI123456";
+
+WebServer server(80);
+Servo servo;
+
+float tempC;
+int lightValue;
+
+int angle = 90;
+int stepDir = 10;
+
+void handleRoot() {
+
+  String page =
+  "<html><body style='font-family:Arial;'>"
+  "<h1>Escola Intel·ligent</h1>"
+  "<h2>Dades ambientals</h2>"
+  "<p>Temperatura: " + String(tempC) + " ºC</p>"
+  "<p>Llum: " + String(lightValue) + "</p>"
+  "</body></html>";
+
+  server.send(200, "text/html", page);
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(LED, OUTPUT);
+  servo.attach(25);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+
+  Serial.println("WiFi CONNECTAT");
+  Serial.println(WiFi.localIP());
+
+  server.on("/", handleRoot);
+  server.begin();
+}
+
+void loop() {
+
+  tempC = (analogRead(LM35) * 3.3 / 4095.0) * 100;
+  lightValue = analogRead(LIGHT);
+
+  digitalWrite(LED, lightValue < 1500);
+
+  if (tempC > 13.5) {
+    angle += stepDir;
+
+    if (angle >= 180 || angle <= 0) {
+      stepDir = -stepDir;
+    }
+
+    servo.write(angle);
+    delay(30);
+  }
+
+  server.handleClient();
+}
