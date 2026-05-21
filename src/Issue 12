@@ -1,0 +1,218 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESP32Servo.h>
+
+#define LM35 34
+#define LIGHT 35
+#define LED 27
+#define STRIP 14
+#define SERVO_PIN 25
+#define BUTTON 17
+
+const char* ssid = "ProjectesSMX";
+const char* password = "SI123456";
+
+WebServer server(80);
+Servo servo;
+
+float tempC = 0;
+int lightValue = 0;
+
+bool autoMode = true;
+
+int angle = 0;
+int stepDir = 3;
+
+unsigned long lastButtonPress = 0;
+
+void handleRoot() {
+
+  // 📌 ESTATS
+  bool tempAlert = tempC > 13.5;
+  bool lightAlert = lightValue < 1500;
+
+  bool servoActive;
+ 
+  if (autoMode) {
+    servoActive = (tempC > 13.5 && lightValue < 1500);
+  } else {
+    servoActive = (tempC > 13.5);
+  }
+
+  String modeText = autoMode ? "AUTO" : "MANUAL";
+
+  String tempColor = tempAlert ? "red" : "green";
+  String lightColor = lightAlert ? "red" : "green";
+
+  String servoStatus = servoActive ? "ACTIU" : "PARAT";
+  String ledStatus = lightAlert ? "ENCES" : "APAGATS";
+
+  String servoColor = servoActive ? "green" : "gray";
+
+  String page = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="refresh" content="2">
+
+<title>Escola Intel·ligent</title>
+
+<style>
+
+body{
+  font-family: Arial;
+  background:#f2f2f2;
+  text-align:center;
+  margin-top:40px;
+}
+
+.container{
+  width:350px;
+  margin:auto;
+  background:white;
+  padding:25px;
+  border-radius:15px;
+  box-shadow:0px 0px 10px gray;
+}
+
+h1{
+  color:#222;
+}
+
+h2{
+  color:black;
+  font-size:22px;
+}
+
+.card{
+  margin:15px 0;
+  padding:12px;
+  border-radius:10px;
+  background:#eeeeee;
+  font-size:20px;
+}
+
+.status{
+  font-weight:bold;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Escola Intel·ligent</h1>
+
+<h2>Dades Ambientals</h2>
+)rawliteral";
+
+  page += "<div class='card'>🌡️ Temperatura: <span style='color:" + tempColor + "'>" + String(tempC) + " ºC</span></div>";
+
+  page += "<div class='card'>💡 Llum: <span style='color:" + lightColor + "'>" + String(lightValue) + "</span></div>";
+
+  page += "<div class='card'>🔘 Mode: <span class='status'>" + modeText + "</span></div>";
+
+  page += "<div class='card'>🌀 Servo: <span style='color:" + servoColor + "'>" + servoStatus + "</span></div>";
+
+  page += "<div class='card'>💡 LED/Tira LED: <span class='status'>" + ledStatus + "</span></div>";
+
+  page += R"rawliteral(
+
+</div>
+</body>
+</html>
+)rawliteral";
+
+  server.send(200, "text/html", page);
+}
+
+void setup() {
+
+  Serial.begin(115200);
+
+  pinMode(LED, OUTPUT);
+  pinMode(STRIP, OUTPUT);
+  pinMode(BUTTON, INPUT_PULLUP);
+
+  servo.attach(SERVO_PIN);
+  servo.write(90);
+
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+
+  Serial.println("WiFi CONNECTAT");
+  Serial.print("IP WEB: ");
+  Serial.println(WiFi.localIP());
+
+  server.on("/", handleRoot);
+
+  server.begin();
+}
+
+void loop() {
+
+  server.handleClient();
+
+  // 🔘 BOTÓ AUTO / MANUAL
+  if (digitalRead(BUTTON) == LOW &&
+      millis() - lastButtonPress > 400) {
+
+    autoMode = !autoMode;
+
+    lastButtonPress = millis();
+  }
+
+  // 📊 LECTURA SENSORS
+  tempC = (analogRead(LM35) * 3.3 / 4095.0) * 100;
+
+  lightValue = analogRead(LIGHT);
+
+  // 💡 LEDS LLUM
+  digitalWrite(LED, lightValue < 1500);
+
+  digitalWrite(STRIP, lightValue < 1500);
+
+  // 🧠 LÒGICA SERVO
+  bool servoActive;
+
+  // 🤖 AUTO
+  if (autoMode) {
+
+    servoActive =
+      (tempC > 13.5 && lightValue < 1500);
+
+  }
+
+  // ✋ MANUAL
+  else {
+
+    servoActive =
+      (tempC > 13.5);
+  }
+
+  // 🌀 MOVIMENT SERVO
+  if (servoActive) {
+
+    angle += stepDir;
+
+    if (angle >= 180 || angle <= 0) {
+      stepDir = -stepDir;
+    }
+
+    servo.write(angle);
+
+    delay(15);
+
+  }
+
+  else {
+
+    servo.write(90);
+  }
+}
